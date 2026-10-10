@@ -1,0 +1,7 @@
+@echo off
+REM Ouvre l'application Deutsch B2 dans Microsoft Edge (voix allemandes naturelles), sinon dans le navigateur par defaut.
+cd /d "%~dp0"
+where msedge >nul 2>nul && (start "" msedge "%~dp0index.html" & exit /b)
+if exist "%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe" (start "" "%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe" "%~dp0index.html" & exit /b)
+if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (start "" "%ProgramFiles%\Google\Chrome\Application\chrome.exe" "%~dp0index.html" & exit /b)
+start "" "%~dp0index.html"
