@@ -73,7 +73,7 @@ const KEY = 'deutschb2-v1';
 function defaults() {
   return {
     start: today(), autoWeek: 0,
-    settings: { rate: 0.9, newPerDay: 20, dir: 'fr-de', voice: '', src: 'week', dark: false, labels: false },
+    settings: { rate: 0.9, newPerDay: 20, dir: 'fr-de', voice: '', src: 'week', dark: null, labels: false },
     srs: {}, active: {}, weekTasks: {}, lessons: {}, tests: {}, xp: 0, hist: {}, custom: [], journal: {}, photos: {}
   };
 }
@@ -220,6 +220,16 @@ document.addEventListener('keydown', e => { if (keyHandler) keyHandler(e); });
 let lastAct = Date.now();
 ['click', 'keydown', 'mousemove', 'touchstart'].forEach(ev => document.addEventListener(ev, () => lastAct = Date.now(), { passive: true }));
 setInterval(() => { if (document.visibilityState === 'visible' && Date.now() - lastAct < 120000) { day().min++; save(); } }, 60000);
+
+/* Fenêtre de confirmation intégrée (les popups du navigateur sont parfois bloquées) */
+function ask(msg, okLabel = 'Confirmer') {
+  return new Promise(res => {
+    const d = document.createElement('div'); d.className = 'modal';
+    d.innerHTML = `<div class="card mbox"><p>${esc(msg)}</p><div class="row gap center"><button class="btn" data-a="0">Annuler</button><button class="btn primary danger-fill" data-a="1">${esc(okLabel)}</button></div></div>`;
+    d.onclick = e => { const b = e.target.closest('[data-a]'); if (b || e.target === d) { d.remove(); res(!!(b && b.dataset.a === '1')); } };
+    document.body.appendChild(d); d.querySelector('[data-a="1"]').focus();
+  });
+}
 
 /* ---------------------------- Routeur ---------------------------- */
 const NAV = [
@@ -442,7 +452,7 @@ function wordCard(w) {
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-photo]'); if (!b) return;
   const id = b.dataset.photo;
-  if (S.photos[id] && confirm('Supprimer ta photo pour ce mot ?')) { delete S.photos[id]; save(); route(); return; }
+  if (S.photos[id]) { ask('Supprimer ta photo pour ce mot ?', 'Supprimer').then(ok => { if (ok) { delete S.photos[id]; save(); route(); } }); return; }
   const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
   inp.onchange = () => {
     const f = inp.files[0]; if (!f) return;
@@ -490,7 +500,7 @@ PAGES.theme = id => {
       S.custom.push({ id: 'c-' + Date.now(), e: $('#c-e').value.trim() || '⭐', de, pl, fr, xd: $('#c-xd').value.trim(), xf: '' });
       rebuildCustom(); save(); toast('Mot ajouté ✔ (il apparaîtra dans tes révisions)'); route();
     };
-    $$('[data-del]').forEach(b => b.onclick = () => { if (!confirm('Supprimer ce mot ?')) return; S.custom = S.custom.filter(c => c.id !== b.dataset.del); delete S.srs[b.dataset.del]; rebuildCustom(); save(); route(); });
+    $$('[data-del]').forEach(b => b.onclick = async () => { if (!(await ask('Supprimer ce mot ?', 'Supprimer'))) return; S.custom = S.custom.filter(c => c.id !== b.dataset.del); delete S.srs[b.dataset.del]; rebuildCustom(); save(); route(); });
   }
 };
 
@@ -931,7 +941,7 @@ PAGES.settings = () => {
     <label>📅 Date de début du programme <input type="date" id="s-start" value="${S.start}"></label>
     <label>🆕 Nouveaux mots par jour <input type="number" id="s-new" min="5" max="80" value="${S.settings.newPerDay}"> <small class="muted">(20 = rythme 4 mois · 30 = très intensif)</small></label>
     <label>🔁 Sens des cartes <select id="s-dir"><option value="fr-de">Français → Allemand (plus efficace)</option><option value="de-fr">Allemand → Français (plus facile)</option></select></label>
-    <label>🌙 Mode sombre <input type="checkbox" id="s-dark" ${S.settings.dark ? 'checked' : ''}></label>
+    <label>🌙 Thème <select id="s-dark"><option value="">Comme l'appareil</option><option value="light">Clair</option><option value="dark">Sombre</option></select></label>
   </div>
   <div class="card form-v"><h2>🔊 Audio</h2>
     <label>Voix allemande <select id="s-voice"><option value="">Automatique</option>${VOICES.map(v => `<option ${v.name === S.settings.voice ? 'selected' : ''}>${esc(v.name)}</option>`).join('')}</select></label>
@@ -941,13 +951,17 @@ PAGES.settings = () => {
   </div>
   <div class="card"><h2>💾 Sauvegarde de ma progression</h2>
     <p class="muted">Ta progression est enregistrée automatiquement dans ce navigateur. Fais une sauvegarde de temps en temps (ou pour changer d'ordinateur).</p>
-    <div class="row gap"><button class="btn primary" id="s-exp">⬇️ Exporter (fichier)</button><label class="btn">⬆️ Importer <input type="file" id="s-imp" accept=".json" hidden></label><button class="btn danger" id="s-reset">🗑️ Tout réinitialiser</button></div>
+    <div class="row gap"><button class="btn primary" id="s-exp">⬇️ Exporter (fichier)</button><label class="btn">⬆️ Importer (fichier) <input type="file" id="s-imp" accept=".json,application/json" hidden></label><button class="btn danger" id="s-reset">🗑️ Tout réinitialiser</button></div>
+    <p class="muted small">Si le téléchargement ne démarre pas (téléphone, lien en ligne) : copie le code ci-dessous et garde-le dans tes notes. Pour le restaurer, colle-le dans la même case puis clique sur « Restaurer ».</p>
+    <textarea id="s-code" rows="3" placeholder="Code de sauvegarde..."></textarea>
+    <div class="row gap"><button class="btn" id="s-copy">📋 Afficher et copier mon code</button><button class="btn" id="s-paste">♻️ Restaurer depuis le code collé</button></div>
   </div>`;
   $('#s-dir').value = S.settings.dir;
   $('#s-start').onchange = e => { if (e.target.value) { S.start = e.target.value; S.autoWeek = 0; save(); toast('Date mise à jour'); } };
   $('#s-new').onchange = e => { S.settings.newPerDay = Math.max(5, Math.min(80, +e.target.value || 20)); save(); };
   $('#s-dir').onchange = e => { S.settings.dir = e.target.value; save(); };
-  $('#s-dark').onchange = e => { S.settings.dark = e.target.checked; applyTheme(); save(); };
+  $('#s-dark').value = S.settings.dark === true ? 'dark' : S.settings.dark === false ? 'light' : '';
+  $('#s-dark').onchange = e => { S.settings.dark = e.target.value === 'dark' ? true : e.target.value === 'light' ? false : null; applyTheme(); save(); };
   $('#s-voice').onchange = e => { S.settings.voice = e.target.value; save(); };
   $('#s-rate').oninput = e => { S.settings.rate = +e.target.value; $('#rv').textContent = e.target.value; save(); };
   $('#s-test').onclick = () => speak('Guten Tag! Ich lerne Deutsch.');
@@ -956,11 +970,17 @@ PAGES.settings = () => {
     a.href = URL.createObjectURL(new Blob([JSON.stringify(S)], { type: 'application/json' }));
     a.download = 'deutsch-b2-sauvegarde-' + today() + '.json'; a.click();
   };
+  const restore = t => { try { const d = JSON.parse(t); if (!d.srs) throw 0; S = Object.assign(defaults(), d); S.settings = Object.assign(defaults().settings, S.settings); rebuildCustom(); save(); applyTheme(); toast('✅ Progression restaurée'); route(); } catch (_) { toast('❌ Code ou fichier invalide'); } };
+  $('#s-copy').onclick = () => {
+    const ta = $('#s-code'); ta.value = JSON.stringify(S);
+    navigator.clipboard?.writeText(ta.value).then(() => toast('📋 Code copié !'), () => { ta.select(); toast('Sélectionne le texte et copie-le (Ctrl+C)'); }) ?? ta.select();
+  };
+  $('#s-paste').onclick = () => restore($('#s-code').value.trim());
   $('#s-imp').onchange = e => {
     const f = e.target.files[0]; if (!f) return;
-    f.text().then(t => { try { const d = JSON.parse(t); if (!d.srs) throw 0; S = Object.assign(defaults(), d); rebuildCustom(); save(); toast('✅ Sauvegarde importée'); route(); } catch (_) { toast('❌ Fichier invalide'); } });
+    f.text().then(restore);
   };
-  $('#s-reset').onclick = () => { if (confirm('Effacer TOUTE ta progression ? (fais d\'abord un export !)') && confirm('Vraiment sûr(e) ?')) { S = defaults(); save(); location.hash = '#/'; route(); } };
+  $('#s-reset').onclick = async () => { if (await ask("Effacer TOUTE ta progression ? Fais d'abord une sauvegarde !", 'Tout effacer')) { S = defaults(); save(); applyTheme(); location.hash = '#/'; route(); } };
 };
 
 /* ---------------------------- Pomodoro ---------------------------- */
@@ -982,13 +1002,17 @@ function pomodoro() {
 }
 
 /* ---------------------------- Démarrage ---------------------------- */
-function applyTheme() { document.documentElement.dataset.theme = S.settings.dark ? 'dark' : 'light'; }
+const sysDark = () => window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches;
+function applyTheme() {
+  const r = document.documentElement;
+  if (S.settings.dark === true) r.dataset.theme = 'dark'; else if (S.settings.dark === false) r.dataset.theme = 'light'; else delete r.dataset.theme;
+}
 function init() {
   applyTheme();
   $('#nav').innerHTML = NAV.map(([p, i, t]) => `<a href="#/${p}" data-p="${p}"><span>${i}</span> ${t}</a>`).join('');
   $('#pomo').onclick = pomodoro;
   $('#burger').onclick = () => document.body.classList.toggle('nav-open');
-  $('#darkbtn').onclick = () => { S.settings.dark = !S.settings.dark; applyTheme(); save(); };
+  $('#darkbtn').onclick = () => { const isDark = S.settings.dark === true || (S.settings.dark == null && sysDark()); S.settings.dark = !isDark; applyTheme(); save(); };
   autoActivate();
   route();
 }
