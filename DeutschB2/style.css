@@ -246,3 +246,14 @@ textarea { width: 100%; font-size: 1.05rem; line-height: 1.6; }
 #toasts { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 50; }
 .toast { background: #1d2433; color: #fff; padding: 10px 16px; border-radius: 10px; box-shadow: 0 6px 20px rgba(0, 0, 0, .3); animation: tin .25s; max-width: 340px; }
 @keyframes tin { from { transform: translateY(10px); opacity: 0; } }
+
+/* Téléphone : en-tête compact */
+@media (max-width: 600px) {
+  .top { gap: 6px; padding: 0 8px; }
+  .logo .txt { display: none; }
+  .hdr-stats { gap: 8px; font-size: .85rem; white-space: nowrap; }
+  .hdr-stats span { white-space: nowrap; }
+  .iconbtn { padding: 5px 7px; font-size: .85rem; white-space: nowrap; }
+  #typ, #inp { font-size: 1.05rem; }
+  h1 { font-size: 1.4rem; }
+}
