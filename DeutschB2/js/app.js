@@ -73,7 +73,7 @@ const KEY = 'deutschb2-v1';
 function defaults() {
   return {
     start: today(), autoWeek: 0,
-    settings: { rate: 0.9, newPerDay: 20, dir: 'fr-de', voice: '', src: 'week', dark: null, labels: false },
+    settings: { pace: '2.5', rate: 0.9, newPerDay: 12, dir: 'fr-de', voice: '', src: 'week', dark: null, labels: false },
     srs: {}, active: {}, weekTasks: {}, lessons: {}, tests: {}, xp: 0, hist: {}, custom: [], journal: {}, photos: {}
   };
 }
@@ -96,7 +96,21 @@ function rebuildCustom() {
 rebuildCustom();
 const allWords = () => WORDS.concat(CUSTOM_THEME.words);
 
-function curWeek() { return Math.min(16, Math.max(1, Math.floor(diffDays(S.start, today()) / 7) + 1)); }
+/* Rythme d'étude : le programme de 16 étapes s'étale selon les heures disponibles par jour */
+const PACES = {
+  '4':   { h: 4,   f: 1,   newc: 20, label: '4 h par jour → B2 en 16 semaines (≈ 4 mois)' },
+  '3':   { h: 3,   f: 2,   newc: 15, label: '3 h par jour → B2 en 32 semaines (≈ 8 mois)' },
+  '2.5': { h: 2.5, f: 2.5, newc: 12, label: '2 h 30 par jour → B2 en 40 semaines (≈ 9-10 mois)' },
+  '2':   { h: 2,   f: 3,   newc: 10, label: '2 h par jour → B2 en 48 semaines (≈ 11 mois)' }
+};
+if (!S.settings.pace || !PACES[S.settings.pace]) { S.settings.pace = '2.5'; S.settings.newPerDay = PACES['2.5'].newc; }
+const pace = () => PACES[S.settings.pace] || PACES['2.5'];
+const totalWeeks = () => 16 * pace().f;
+/* semaines réelles couvertes par l'étape p du programme */
+function stepRange(p) { const f = pace().f; return [Math.round((p - 1) * f) + 1, Math.round(p * f)]; }
+function realWeek() { return Math.min(totalWeeks(), Math.max(1, Math.floor(diffDays(S.start, today()) / 7) + 1)); }
+function curWeek() { const r = realWeek(); for (let p = 1; p <= 16; p++) if (stepRange(p)[1] >= r) return p; return 16; }
+const routineMin = base => Math.max(10, Math.round(base * pace().h / 4 / 5) * 5);
 function curLevel() { return PLAN[curWeek() - 1].lvl; }
 function autoActivate() {
   const cw = curWeek();
@@ -260,7 +274,7 @@ const PAGES = {};
 /* ---------------------------- Accueil ---------------------------- */
 PAGES.dashboard = () => {
   autoActivate();
-  const cw = curWeek(), wk = PLAN[cw - 1], dnum = Math.min(112, diffDays(S.start, today()) + 1);
+  const cw = curWeek(), wk = PLAN[cw - 1], totD = totalWeeks() * 7, dnum = Math.min(totD, diffDays(S.start, today()) + 1);
   const due = dueCards().length, nw = newCards().length, d = day();
   const pool = activeWords().length ? activeWords() : WORDS;
   const wod = pool[seeded(today()) % pool.length];
@@ -277,10 +291,10 @@ PAGES.dashboard = () => {
   view().innerHTML = `
   <section class="hero">
     <div>
-      <div class="kicker">Semaine ${cw} / 16 · Jour ${dnum} · Niveau visé : <b class="lv lv-${wk.lvl}">${wk.lvl}</b></div>
+      <div class="kicker">Semaine ${realWeek()} / ${totalWeeks()} · Étape ${cw}/16 · Jour ${dnum} · Niveau visé : <b class="lv lv-${wk.lvl}">${wk.lvl}</b></div>
       <h1>Willkommen! 👋</h1>
       <p class="sub">${esc(wk.t)} — ${esc(wk.goal)}</p>
-      <div class="bar big"><i style="width:${Math.round(dnum / 112 * 100)}%"></i></div>
+      <div class="bar big"><i style="width:${Math.round(dnum / totD * 100)}%"></i></div>
       <div class="row gap">
         <a class="btn primary big" href="#/review">▶ Réviser maintenant <span class="pill">${due} à revoir · ${nw} nouveaux</span></a>
         <a class="btn" href="#/plan">Voir le programme</a>
@@ -295,9 +309,9 @@ PAGES.dashboard = () => {
   </div>
   <div class="grid2">
     <div class="card">
-      <h2>✅ Ma routine du jour <small>(~4 h)</small></h2>
-      <ul class="checks" id="routine">${ROUTINE.map(r => `<li><label><input type="checkbox" data-r="${r.id}" ${d.tasks[r.id] ? 'checked' : ''}> ${r.i} <a href="${r.link}">${esc(r.t)}</a> <small>${r.d}</small></label></li>`).join('')}</ul>
-      <p class="muted small">Pour passer de 0 à B2 en 4 mois, il faut environ 450–600 heures : vise <b>4 h par jour, 6 jours sur 7</b>.</p>
+      <h2>✅ Ma routine du jour <small>(~${String(pace().h).replace('.5', ' h 30').replace(/^(\d)$/, '$1 h')})</small></h2>
+      <ul class="checks" id="routine">${ROUTINE.map(r => `<li><label><input type="checkbox" data-r="${r.id}" ${d.tasks[r.id] ? 'checked' : ''}> ${r.i} <a href="${r.link}">${esc(r.t)}</a> <small>${routineMin(parseInt(r.d))} min</small></label></li>`).join('')}</ul>
+      <p class="muted small">Rythme choisi : <b>${esc(pace().label)}</b>, 6 jours sur 7 (0 → B2 ≈ 500–650 heures). <a href="#/settings">Changer le rythme</a></p>
     </div>
     <div class="card wod">
       <h2>🌟 Mot du jour</h2>
@@ -323,13 +337,13 @@ PAGES.dashboard = () => {
 /* ---------------------------- Programme ---------------------------- */
 PAGES.plan = () => {
   const cw = curWeek();
-  view().innerHTML = `<h1>🗓️ Programme intensif : 0 → B2 en 16 semaines</h1>
-  <p class="sub">Semaines 1–4 : <b class="lv lv-A1">A1</b> · 5–8 : <b class="lv lv-A2">A2</b> · 9–12 : <b class="lv lv-B1">B1</b> · 13–16 : <b class="lv lv-B2">B2</b>. Les thèmes de vocabulaire de chaque semaine sont ajoutés automatiquement à tes révisions.
+  view().innerHTML = `<h1>🗓️ Programme : 0 → B2 en ${totalWeeks()} semaines</h1>
+  <p class="sub">Rythme : <b>${esc(pace().label)}</b> (<a href="#/settings">modifier</a>). Le programme a 16 étapes : ${LEVELS.map((l, k) => `<b class="lv lv-${l}">${l}</b> semaines ${stepRange(k * 4 + 1)[0]}–${stepRange(k * 4 + 4)[1]}`).join(' · ')}. Les thèmes de vocabulaire de chaque semaine sont ajoutés automatiquement à tes révisions.
   Date de début : <b>${S.start}</b> (modifiable dans les Paramètres).</p>
   ${PLAN.map(p => {
     const done = p.tasks.filter((_, i) => S.weekTasks[p.w + '-' + i]).length;
     return `<details class="card week ${p.w === cw ? 'current' : ''} ${p.w < cw ? 'past' : ''}" ${p.w === cw ? 'open' : ''}>
-    <summary><b class="lv lv-${p.lvl}">${p.lvl}</b> <span class="wk">Semaine ${p.w}</span> ${esc(p.t)} <span class="muted">${done}/${p.tasks.length}</span> ${p.w === cw ? '<span class="badge b-mid">en cours</span>' : ''}</summary>
+    <summary><b class="lv lv-${p.lvl}">${p.lvl}</b> <span class="wk">Étape ${p.w} · ${stepRange(p.w)[0] === stepRange(p.w)[1] ? 'semaine ' + stepRange(p.w)[0] : 'semaines ' + stepRange(p.w)[0] + '–' + stepRange(p.w)[1]}</span> ${esc(p.t)} <span class="muted">${done}/${p.tasks.length}</span> ${p.w === cw ? '<span class="badge b-mid">en cours</span>' : ''}</summary>
     <p><b>🎯 Objectif :</b> ${esc(p.goal)}</p>
     <div class="grid2">
       <div><h3>📘 Grammaire</h3><ul class="links">${p.g.map(id => `<li><a href="#/lesson/${id}">${LESSON_BY[id].i} ${esc(LESSON_BY[id].t)}</a> ${S.lessons[id] ? '✅' : ''}</li>`).join('')}</ul>
@@ -902,7 +916,7 @@ PAGES.tests = (lvl) => {
     });
   }
   view().innerHTML = `<h1>🏆 Tests de niveau</h1><p class="sub">À faire à la fin de chaque bloc de 4 semaines. 20 questions : vocabulaire, genres et grammaire. Score ≥ 70% = niveau validé.</p>
-  <div class="egrid">${LEVELS.map((l, k) => `<a class="ecard ${S.tests[l]?.best >= 70 ? 'done' : ''}" href="#/tests/${l}"><span class="ti">${['🥉', '🥈', '🥇', '🏆'][k]}</span><b class="lv lv-${l}">${l}</b><small>Semaine ${(k + 1) * 4}</small>${S.tests[l] ? `<span class="badge ${S.tests[l].best >= 70 ? 'b-ok' : 'b-mid'}">Meilleur : ${S.tests[l].best}%</span>` : ''}</a>`).join('')}</div>
+  <div class="egrid">${LEVELS.map((l, k) => `<a class="ecard ${S.tests[l]?.best >= 70 ? 'done' : ''}" href="#/tests/${l}"><span class="ti">${['🥉', '🥈', '🥇', '🏆'][k]}</span><b class="lv lv-${l}">${l}</b><small>Semaine ${stepRange((k + 1) * 4)[1]}</small>${S.tests[l] ? `<span class="badge ${S.tests[l].best >= 70 ? 'b-ok' : 'b-mid'}">Meilleur : ${S.tests[l].best}%</span>` : ''}</a>`).join('')}</div>
   <div class="card"><h2>🎓 Les examens officiels</h2><p>Pour obtenir un diplôme reconnu, passe le <b>Goethe-Zertifikat</b> ou le <b>telc</b> (A1 : « Start Deutsch 1 », A2, B1, B2). Le site du Goethe-Institut propose des <b>examens blancs gratuits</b> (« Übungsmaterialien ») avec les fichiers audio : fais-les en conditions réelles avec un chronomètre.</p>
   <p>Le B2 comporte 4 épreuves : <b>Lesen</b> (lecture, 65 min), <b>Hören</b> (écoute, 40 min), <b>Schreiben</b> (écriture, 75 min), <b>Sprechen</b> (oral, 15 min).</p>
   <a class="btn" href="https://www.goethe.de" target="_blank" rel="noopener">Goethe-Institut ↗</a></div>`;
@@ -930,7 +944,7 @@ PAGES.stats = () => {
     <div class="card stat"><div class="big">✍️ ${Object.keys(S.journal).length}</div><div>textes écrits</div></div>
   </div>
   <div class="card"><h2>Activité (cartes + exercices) — 14 derniers jours</h2><div class="chart">${bars(d => (S.hist[d]?.rev || 0) + (S.hist[d]?.q || 0), maxR, 'c1')}</div></div>
-  <div class="card"><h2>Minutes d'étude — 14 derniers jours <small class="muted">(objectif : 240 min/jour)</small></h2><div class="chart">${bars(d => S.hist[d]?.min || 0, maxM, 'c2')}</div></div>
+  <div class="card"><h2>Minutes d'étude — 14 derniers jours <small class="muted">(objectif : ${pace().h * 60} min/jour)</small></h2><div class="chart">${bars(d => S.hist[d]?.min || 0, maxM, 'c2')}</div></div>
   <div class="card"><h2>Vocabulaire par niveau</h2>${LEVELS.map(l => { const ws = WORDS.filter(w => w.lvl === l), n = ws.filter(w => isLearned(w.id)).length; return `<div class="lvlrow"><b class="lv lv-${l}">${l}</b><div class="bar"><i style="width:${n / ws.length * 100}%"></i></div><span>${n}/${ws.length}</span></div>`; }).join('')}</div>`;
 };
 
@@ -939,7 +953,8 @@ PAGES.settings = () => {
   view().innerHTML = `<h1>⚙️ Paramètres</h1>
   <div class="card form-v">
     <label>📅 Date de début du programme <input type="date" id="s-start" value="${S.start}"></label>
-    <label>🆕 Nouveaux mots par jour <input type="number" id="s-new" min="5" max="80" value="${S.settings.newPerDay}"> <small class="muted">(20 = rythme 4 mois · 30 = très intensif)</small></label>
+    <label>⏰ Mon temps d'étude <select id="s-pace">${Object.entries(PACES).map(([k, v]) => `<option value="${k}" ${k === S.settings.pace ? 'selected' : ''}>${esc(v.label)}</option>`).join('')}</select></label>
+    <label>🆕 Nouveaux mots par jour <input type="number" id="s-new" min="5" max="80" value="${S.settings.newPerDay}"> <small class="muted">(réglé automatiquement selon ton rythme, modifiable)</small></label>
     <label>🔁 Sens des cartes <select id="s-dir"><option value="fr-de">Français → Allemand (plus efficace)</option><option value="de-fr">Allemand → Français (plus facile)</option></select></label>
     <label>🌙 Thème <select id="s-dark"><option value="">Comme l'appareil</option><option value="light">Clair</option><option value="dark">Sombre</option></select></label>
   </div>
@@ -958,6 +973,7 @@ PAGES.settings = () => {
   </div>`;
   $('#s-dir').value = S.settings.dir;
   $('#s-start').onchange = e => { if (e.target.value) { S.start = e.target.value; S.autoWeek = 0; save(); toast('Date mise à jour'); } };
+  $('#s-pace').onchange = e => { S.settings.pace = e.target.value; S.settings.newPerDay = pace().newc; $('#s-new').value = S.settings.newPerDay; save(); toast('⏰ Rythme mis à jour : ' + pace().label); };
   $('#s-new').onchange = e => { S.settings.newPerDay = Math.max(5, Math.min(80, +e.target.value || 20)); save(); };
   $('#s-dir').onchange = e => { S.settings.dir = e.target.value; save(); };
   $('#s-dark').value = S.settings.dark === true ? 'dark' : S.settings.dark === false ? 'light' : '';

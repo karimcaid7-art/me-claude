@@ -1,4 +1,4 @@
-# 🇩🇪 Deutsch B2 — Apprendre l'allemand de 0 à B2 en 16 semaines
+# 🇩🇪 Deutsch B2 — Apprendre l'allemand de 0 à B2
 
 Une application pour ton PC : **aucune installation**, **fonctionne sans Internet**, tout en français.
 
@@ -15,7 +15,7 @@ Une application pour ton PC : **aucune installation**, **fonctionne sans Interne
 
 | Module | Contenu |
 |---|---|
-| 🗓️ **Programme 16 semaines** | A1 (sem. 1–4) → A2 (5–8) → B1 (9–12) → B2 (13–16), objectifs, tâches, ressources gratuites |
+| 🗓️ **Programme adapté à ton temps** | 16 étapes A1 → A2 → B1 → B2, étalées selon ton rythme (Paramètres → « Mon temps d'étude ») |
 | 🔁 **Révisions intelligentes** | Cartes à répétition espacée (comme Anki) : chaque mot revient juste avant que tu l'oublies |
 | 🖼️ **Vocabulaire illustré** | plus de 1 000 mots en 47 thèmes, chacun avec une image, l'audio, le pluriel et souvent un exemple |
 | 📷 **Tes propres photos** | Ajoute une photo personnelle à n'importe quel mot (bouton 📷) : on retient mieux ses propres images |
@@ -31,11 +31,18 @@ Une application pour ton PC : **aucune installation**, **fonctionne sans Interne
 | 📊 **Statistiques** | Série de jours, XP, minutes d'étude, taux de réussite, progression par niveau |
 | ⏱️ **Pomodoro** | Minuteur 25 min intégré |
 
-## ⚠️ Pour réussir en 3–4 mois
+## ⏰ Choisis ton rythme (Paramètres → « Mon temps d'étude »)
 
-Passer de 0 à B2 demande environ **450 à 600 heures** de travail. En 16 semaines, cela fait **4 h par jour, 6 jours sur 7**.
-L'application te guide chaque jour (« Ma routine du jour »), mais il est indispensable de **parler avec des natifs**
-(Tandem, HelloTalk, italki) et d'**écouter beaucoup d'allemand** (Nicos Weg, Easy German, Tagesschau...).
+| Étude par jour | Durée jusqu'au B2 | Nouveaux mots / jour |
+|---|---|---|
+| 4 h | 16 semaines (≈ 4 mois) | 20 |
+| 3 h | 32 semaines (≈ 8 mois) | 15 |
+| 2 h 30 *(par défaut)* | 40 semaines (≈ 9-10 mois) | 12 |
+| 2 h | 48 semaines (≈ 11 mois) | 10 |
+
+Le programme, la durée de chaque activité de la routine du jour et le nombre de nouveaux mots s'adaptent automatiquement.
+Passer de 0 à B2 demande environ **500 à 650 heures** : en plus de l'application, **parle avec des natifs**
+(Tandem, HelloTalk, italki) et **écoute beaucoup d'allemand** (Nicos Weg, Easy German, Tagesschau...).
 
 ## 🔊 Pas de voix allemande ?
 
